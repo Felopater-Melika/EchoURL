@@ -3,14 +3,13 @@
   lib,
   config,
   inputs,
-  arion,
   ...
 }: {
   # https://devenv.sh/basics/
   env.GREET = "devenv";
 
   # https://devenv.sh/packages/
-  packages = [pkgs.git pkgs.sea-orm-cli pkgs.pkg-config pkgs.openssl pkgs.arion];
+  packages = [pkgs.git pkgs.sea-orm-cli pkgs.pkg-config pkgs.openssl pkgs.redis];
 
   # https://devenv.sh/languages/
   languages.rust = {
@@ -43,8 +42,8 @@
   # '';
 
     enterShell = ''
-    echo "Starting PostgreSQL with Arion..."
-    arion up -d
+    echo "Starting dockers ..."
+    docker-compose up -d
   '';
 
   # https://devenv.sh/tasks/
@@ -61,6 +60,5 @@
 
   # https://devenv.sh/pre-commit-hooks/
   # pre-commit.hooks.shellcheck.enable = true;
-  processes.stop-arion.exec = "arion down";
   # See full reference at https://devenv.sh/reference/options/
 }
