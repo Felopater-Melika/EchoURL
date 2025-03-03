@@ -1,6 +1,0 @@
-[workspace]
-
-members = [
-  "shared",
-  "api_gateway"
-]
