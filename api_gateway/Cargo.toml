@@ -8,8 +8,9 @@ axum = "0.8"  # Web framework
 hyper = "0.14"  # HTTP server
 tonic = "0.9"  # gRPC client (calls Shortener Service)
 tokio-stream = "0.1"  # Streaming support
-tower-http = { version = "0.4", features = ["cors", "trace"] }
+tower-http = { version = "0.4", features = ["full"] }
 serde = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true}
+chrono = { workspace = true }
