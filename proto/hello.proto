@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package echourl;
+
+service HelloWorld {
+    rpc Greeter(Greet) returns (Greeted);
+}
+
+message Greet {
+    string greet = 1;
+}
+
+message Greeted {
+    string greeted = 1;
+}
