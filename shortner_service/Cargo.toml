@@ -9,7 +9,9 @@ prost = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
 tonic-build = "0.12.3"
+sea-orm = { version = "1.1.0", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
 
 
 [build-dependencies]
