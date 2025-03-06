@@ -41,10 +41,11 @@
   #   git --version
   # '';
 
-    enterShell = ''
-    echo "Starting dockers ..."
-    docker-compose up -d
-  '';
+#    enterShell = ''
+#    export DATABASE_URL="postgres://echo:1234@localhost:5432/echodb"
+#    echo "Starting dockers ..."
+#    docker-compose up -d
+#  '';
 
   # https://devenv.sh/tasks/
   # tasks = {

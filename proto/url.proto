@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package echourl;
+
+
+service ShortenUrl {
+  rpc CreateShortenedUrl(OriginalUrl) returns (ShortenedUrl);
+  rpc DeleteShortenedUrl(OriginalUrl) returns (DeleteResponse);
+
+}
+
+message OriginalUrl {
+  string url = 1;
+}
+
+message ShortenedUrl {
+  string id = 1;
+  string originalUrl = 2;
+  string shortenedUrl = 3;
+  string clicks = 4;
+  string createdAt = 5;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string message = 2;
+}

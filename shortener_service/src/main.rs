@@ -1,17 +1,92 @@
 use anyhow::Result;
-use echourl::Greet;
-use sea_orm::{Database, DatabaseConnection};
-use std::env;
+use echourl::shorten_url_server::{ShortenUrl, ShortenUrlServer};
+use echourl::{DeleteResponse, OriginalUrl, ShortenedUrl};
+use entity::url;
+use rand::distr::Alphanumeric;
+use rand::{Rng, rng};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Database, DatabaseConnection, EntityTrait, QueryFilter, Set,
+};
+use shared::connection::connect_db;
+use std::sync::Arc;
 use tonic::transport::Server;
+use tonic::{Request, Response, Status};
 use tracing::{error, info};
 
 mod echourl {
     tonic::include_proto!("echourl");
 }
 
-#[derive(Default)]
-pub struct MyServer {
-    connection: DatabaseConnection,
+/// Generates a random short code for URL shortening.
+fn generate_short_code(length: usize) -> String {
+    rng()
+        .sample_iter(&Alphanumeric)
+        .take(length)
+        .map(char::from)
+        .collect()
+}
+
+/// gRPC Service Struct
+#[derive(Debug)]
+struct ShortenUrlService {
+    db: Arc<DatabaseConnection>,
+}
+
+impl ShortenUrlService {
+    pub fn new(db: Arc<DatabaseConnection>) -> Self {
+        Self { db }
+    }
+}
+
+#[tonic::async_trait]
+impl ShortenUrl for ShortenUrlService {
+    async fn create_shortened_url(
+        &self,
+        request: Request<OriginalUrl>,
+    ) -> std::result::Result<Response<ShortenedUrl>, Status> {
+        let shortened_url = url::ActiveModel {
+            id: Default::default(),
+            original: Set(request.into_inner().url), // Fixed field name
+            shortened: Set(generate_short_code(5)),  // Fixed field name
+            clicks: Set(0),
+            created_at: Default::default(),
+        };
+
+        let shortened_url: url::Model = shortened_url
+            .insert(&*self.db) // Dereferenced Arc<DatabaseConnection>
+            .await
+            .map_err(|e| Status::internal(format!("Database error: {}", e)))?;
+
+        info!("Shortened URL: {}", shortened_url.id);
+
+        Ok(Response::new(ShortenedUrl {
+            id: shortened_url.id.to_string(),
+            original_url: shortened_url.original.clone(),
+            shortened_url: shortened_url.shortened.clone(),
+            clicks: shortened_url.clicks.to_string(),
+            created_at: shortened_url.created_at.to_string(),
+        }))
+    }
+
+    async fn delete_shortened_url(
+        &self,
+        request: Request<OriginalUrl>,
+    ) -> std::result::Result<Response<DeleteResponse>, Status> {
+        let original_url = request.into_inner().url;
+
+        let delete_result = url::Entity::delete_many()
+            .filter(url::Column::Original.eq(original_url)) // Fixed incorrect column reference
+            .exec(&*self.db)
+            .await
+            .map_err(|e| Status::internal(format!("Database error: {}", e)))?;
+
+        info!("Delete result: {:?}", delete_result.rows_affected);
+
+        Ok(Response::new(DeleteResponse {
+            message: "URL deleted successfully".to_string(),
+            success: delete_result.rows_affected > 0,
+        }))
+    }
 }
 
 #[tokio::main]
@@ -19,45 +94,18 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
-    let connection = Database::connect("postgres://echo:1234@localhost:5432/echodb").await?;
-    // Migrator::up(&connection, None).await?;
 
-    // let addr = "0.0.0.0:50051".parse()?;
-    // let hello_server = MyServer { connection };
-    // let grpc_server = tokio::spawn(async move {
-    //     let addr = "0.0.0.0:50051".parse()?;
-    //     let service = HelloWorldService::default();
-    //
-    //     info!("🚀 gRPC server listening on 0.0.0.0:50051");
-    //
-    //     Server::builder()
-    //         .add_service(HelloWorldServer::new(service))
-    //         .await?;
-    //     Ok::<(), anyhow::Error>(())
-    // });
+    let db = connect_db().await;
+
+    let addr = "0.0.0.0:50051".parse()?;
+    let service = ShortenUrlService::new(db.clone());
+
+    info!("🚀 gRPC server listening on {}", addr);
+
+    Server::builder()
+        .add_service(ShortenUrlServer::new(service))
+        .serve(addr)
+        .await?;
+
     Ok(())
 }
-// mod echourl {
-//     tonic::include_proto!("echourl");
-// }
-//
-// #[tokio::main]
-// async fn main() -> Result<()> {
-//     tracing_subscriber::fmt()
-//         .with_max_level(tracing::Level::INFO)
-//         .init();
-//
-//     let mut client = HelloWorldClient::connect("http://0.0.0.0:50051").await?;
-//     info!("🚀 gRPC Client Requesting 0.0.0.0:50051");
-//
-//     let request = tonic::Request::new(Greet {
-//         greet: "Hello from gRPC Client!".to_string(),
-//     });
-//
-//     match client.greeter(request).await {
-//         Ok(response) => info!("gRPC Response: {:?}", response.into_inner().greeted),
-//         Err(e) => error!("❌ gRPC Request failed: {}", e),
-//     }
-//
-//     Ok(())
-// }
