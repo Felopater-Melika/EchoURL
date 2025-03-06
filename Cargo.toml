@@ -2,12 +2,13 @@
 resolver = "3"
 
 members = [
-    "shared",
     "api_gateway",
     "analytics_service",
     "click_tracker",
     "redirect_service",
-    "shortner_service"
+    "shortener_service",
+    "migration",
+    "entity"
 ]
 
 [workspace.dependencies]
