@@ -10,3 +10,6 @@ devenv.local.nix
 
 postgres-data
 redis-data
+
+target
+.idea

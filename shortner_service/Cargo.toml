@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 tonic = { workspace = true }
+prost = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
