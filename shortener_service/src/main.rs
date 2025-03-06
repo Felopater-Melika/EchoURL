@@ -17,7 +17,6 @@ mod echourl {
     tonic::include_proto!("echourl");
 }
 
-/// Generates a random short code for URL shortening.
 fn generate_short_code(length: usize) -> String {
     rng()
         .sample_iter(&Alphanumeric)
@@ -26,7 +25,6 @@ fn generate_short_code(length: usize) -> String {
         .collect()
 }
 
-/// gRPC Service Struct
 #[derive(Debug)]
 struct ShortenUrlService {
     db: Arc<DatabaseConnection>,
@@ -46,24 +44,24 @@ impl ShortenUrl for ShortenUrlService {
     ) -> std::result::Result<Response<ShortenedUrl>, Status> {
         let shortened_url = url::ActiveModel {
             id: Default::default(),
-            original: Set(request.into_inner().url), // Fixed field name
-            shortened: Set(generate_short_code(5)),  // Fixed field name
+            original: Set(request.into_inner().url),
+            shortened: Set(generate_short_code(5)),
             clicks: Set(0),
             created_at: Default::default(),
         };
 
         let shortened_url: url::Model = shortened_url
-            .insert(&*self.db) // Dereferenced Arc<DatabaseConnection>
+            .insert(&*self.db)
             .await
             .map_err(|e| Status::internal(format!("Database error: {}", e)))?;
 
         info!("Shortened URL: {}", shortened_url.id);
 
         Ok(Response::new(ShortenedUrl {
-            id: shortened_url.id.to_string(),
+            id: shortened_url.id,
             original_url: shortened_url.original.clone(),
             shortened_url: shortened_url.shortened.clone(),
-            clicks: shortened_url.clicks.to_string(),
+            clicks: shortened_url.clicks,
             created_at: shortened_url.created_at.to_string(),
         }))
     }
@@ -75,7 +73,7 @@ impl ShortenUrl for ShortenUrlService {
         let original_url = request.into_inner().url;
 
         let delete_result = url::Entity::delete_many()
-            .filter(url::Column::Original.eq(original_url)) // Fixed incorrect column reference
+            .filter(url::Column::Original.eq(original_url))
             .exec(&*self.db)
             .await
             .map_err(|e| Status::internal(format!("Database error: {}", e)))?;

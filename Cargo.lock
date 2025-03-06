@@ -146,6 +146,7 @@ dependencies = [
  "anyhow",
  "axum 0.8.1",
  "prost",
+ "serde",
  "tokio",
  "tonic",
  "tonic-build",

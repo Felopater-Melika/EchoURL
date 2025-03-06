@@ -1,32 +1,20 @@
+use crate::echourl::shorten_url_client::ShortenUrlClient;
+use crate::echourl::{DeleteResponse, OriginalUrl, ShortenedUrl};
 use anyhow::Result;
-use axum::{Extension, Router, routing::get};
-use echourl::hello_world_server::{HelloWorld, HelloWorldServer};
-use echourl::{Greet, Greeted};
+use axum::http::StatusCode;
+use axum::routing::{delete, post};
+use axum::{Extension, Json, Router};
+use serde::{Deserialize, Serialize};
 use std::env;
-use tokio::sync::oneshot;
-use tonic::{Request, Response, Status, transport::Server};
+use tonic::transport::Channel;
+use tonic::Request;
 use tower::ServiceBuilder;
 use tower_http::compression::CompressionLayer;
-use tower_http::trace::{self, TraceLayer};
-use tracing::{Level, error, info};
+use tower_http::trace::TraceLayer;
+use tracing::{info, Level};
 
 mod echourl {
     tonic::include_proto!("echourl");
-}
-
-#[derive(Debug, Default)]
-struct HelloWorldService {}
-
-#[tonic::async_trait]
-impl HelloWorld for HelloWorldService {
-    async fn greeter(&self, request: Request<Greet>) -> Result<Response<Greeted>, Status> {
-        info!("Received gRPC request: {:?}", request);
-
-        let response = Greeted {
-            greeted: "Hello, World from gRPC!".to_string(),
-        };
-        Ok(Response::new(response))
-    }
 }
 
 #[derive(Clone)]
@@ -42,51 +30,109 @@ async fn main() -> Result<()> {
         .with_max_level(Level::DEBUG)
         .init();
 
-    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let grpc_channel = Channel::from_static("http://127.0.0.1:50051/")
+        .connect()
+        .await?;
 
-    let http_server = tokio::spawn(async move {
-        let app = Router::new().route("/", get(root)).layer(
+    let app = Router::new()
+        .route("/createurl", post(create_url))
+        .route("/deleteurl", delete(delete_url))
+        .layer(
             ServiceBuilder::new()
-                .layer(Extension(State {}))
+                .layer(Extension(grpc_channel))
                 .layer(CompressionLayer::new())
                 .layer(TraceLayer::new_for_http()),
         );
 
-        let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-        info!("🚀 HTTP server listening on 0.0.0.0:3000");
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    info!("🚀 HTTP server listening on 0.0.0.0:3000");
 
-        axum::serve(listener, app).await?;
-        Ok::<(), anyhow::Error>(())
-    });
-
-    let grpc_server = tokio::spawn(async move {
-        let addr = "0.0.0.0:50051".parse()?;
-        let service = HelloWorldService::default();
-
-        info!("🚀 gRPC server listening on 0.0.0.0:50051");
-
-        Server::builder()
-            .add_service(HelloWorldServer::new(service))
-            .serve_with_shutdown(addr, async {
-                shutdown_rx.await.ok();
-            })
-            .await?;
-        Ok::<(), anyhow::Error>(())
-    });
-
-    tokio::select! {
-        _ = http_server => {
-            error!("HTTP server stopped!");
-            let _ = shutdown_tx.send(());
-        }
-        _ = grpc_server => {
-            error!("gRPC server stopped!");
-        }
-    }
-
-    Ok(())
+    axum::serve(listener, app).await?;
+    Ok::<(), anyhow::Error>(())
 }
 
-async fn root() -> &'static str {
-    "Hello, World from HTTP!"
+async fn create_url(
+    Extension(grpc_channel): Extension<Channel>,
+    Json(payload): Json<CreateUrlRequest>,
+) -> Result<(StatusCode, Json<UrlCreated>), StatusCode> {
+    let mut client = ShortenUrlClient::new(grpc_channel.clone());
+
+    let grpc_request = Request::new(OriginalUrl {
+        url: payload.url.clone(),
+    });
+
+    match client.create_shortened_url(grpc_request).await {
+        Ok(response) => {
+            let ShortenedUrl {
+                id,
+                original_url,
+                shortened_url,
+                clicks,
+                created_at,
+            } = response.into_inner();
+
+            Ok((
+                StatusCode::CREATED,
+                Json(UrlCreated {
+                    id,
+                    original_url,
+                    shortened_url,
+                    clicks,
+                    created_at,
+                }),
+            ))
+        }
+        Err(err) => {
+            tracing::error!("gRPC call failed: {:?}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+async fn delete_url(
+    Extension(grpc_channel): Extension<Channel>,
+    Json(payload): Json<DeleteUrlRequest>,
+) -> Result<(StatusCode, Json<UrlDeleted>), StatusCode> {
+    let mut client = ShortenUrlClient::new(grpc_channel);
+
+    let grpc_request = Request::new(OriginalUrl {
+        url: payload.url.clone(),
+    });
+
+    match client.delete_shortened_url(grpc_request).await {
+        Ok(response) => {
+            let DeleteResponse { message, success } = response.into_inner();
+
+            Ok((StatusCode::OK, Json(UrlDeleted { message, success })))
+        }
+        Err(err) => {
+            tracing::error!("gRPC call failed: {:?}", err);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct CreateUrlRequest {
+    url: String,
+}
+
+#[derive(Serialize)]
+struct UrlCreated {
+    id: i32,
+    original_url: String,
+    shortened_url: String,
+    clicks: i32,
+    created_at: String,
+}
+
+#[derive(Deserialize)]
+struct DeleteUrlRequest {
+    url: String,
+}
+
+#[derive(Serialize)]
+struct UrlDeleted {
+    message: String,
+    success: bool,
 }
