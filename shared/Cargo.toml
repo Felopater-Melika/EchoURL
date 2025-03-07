@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 sea-orm = { workspace = true }
 tokio = { workspace = true }
+anyhow = { workspace = true }
+redis = { workspace = true }

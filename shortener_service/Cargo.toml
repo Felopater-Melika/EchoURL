@@ -10,11 +10,13 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 tonic-build = "0.12.3"
 sea-orm = { workspace = true }
 entity = { path = "../entity" }
 shared = { path = "../shared" }
 rand = "0.9.0"
+redis = { workspace = true }
 
 [build-dependencies]
 tonic-build = "0.12.3"

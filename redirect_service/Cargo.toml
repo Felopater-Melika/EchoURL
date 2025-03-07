@@ -4,3 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+sea-orm = { workspace = true }
+shared = { path = "../shared" }
+entity = { path = "../entity" }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+redis = { workspace = true }
