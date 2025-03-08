@@ -18,7 +18,7 @@ services:
     volumes:
       - ./redis-data:/data  # Persist RDB snapshots
       - ./redis.conf:/usr/local/etc/redis/redis.conf  # Custom config
-    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
     restart: unless-stopped
 
   kafka-ui:
@@ -53,5 +53,6 @@ services:
 
       # Required for a single node cluster
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

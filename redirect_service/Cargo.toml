@@ -14,3 +14,4 @@ entity = { path = "../entity" }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 redis = { workspace = true }
+rdkafka = { workspace = true }

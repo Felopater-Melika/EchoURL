@@ -4,3 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+sea-orm = { workspace = true }
+rdkafka = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = "0.1.17"
+entity = { path = "../entity" }
+shared = { path = "../shared" }
+anyhow = { workspace = true }
